@@ -47,7 +47,7 @@ func (g *GoSub) Publish(ctx context.Context, topic string, m *driver.Msg) error 
 
 	res := t.Publish(context.Background(), &pubsub.Message{
 		Data:       m.Message.Data,
-		Attributes: m.Message.Attributes,
+		Attributes: m.Message.Meta,
 	})
 
 	_, err = res.Get(context.Background())
