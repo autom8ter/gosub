@@ -14,7 +14,7 @@ github.com/Masterminds/semver
 github.com/Masterminds/sprig
 # github.com/auth0/go-jwt-middleware v0.0.0-20170425171159-5493cabe49f7
 github.com/auth0/go-jwt-middleware
-# github.com/autom8ter/api v0.0.0-20190415081401-f1642e63289d
+# github.com/autom8ter/api v0.0.0-20190415191723-a83e0eb89dc6
 github.com/autom8ter/api/go/api
 # github.com/autom8ter/engine v0.0.0-20190415024113-50822e48d499
 github.com/autom8ter/engine
@@ -42,8 +42,6 @@ github.com/go-playground/locales
 github.com/go-playground/locales/currency
 # github.com/go-playground/universal-translator v0.16.0
 github.com/go-playground/universal-translator
-# github.com/gofrs/uuid v3.2.0+incompatible
-github.com/gofrs/uuid
 # github.com/golang/protobuf v1.3.1
 github.com/golang/protobuf/proto
 github.com/golang/protobuf/ptypes
