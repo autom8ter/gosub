@@ -1,42 +1,45 @@
-package goconnect
+package gosub
 
 import (
 	"cloud.google.com/go/pubsub"
 	"context"
+	"github.com/autom8ter/api/go/api"
+	"github.com/autom8ter/gosub/driver"
+	"github.com/jpillora/backoff"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
 	"sync"
 	"time"
 )
 
-type PubSub struct {
+var (
+	mutex = &sync.Mutex{}
+)
+
+// GoSub provides google cloud pubsub
+type GoSub struct {
 	client   *pubsub.Client
 	topics   map[string]*pubsub.Topic
 	subs     map[string]context.CancelFunc
 	shutdown bool
-	mutex    *sync.Mutex
 }
 
-var ()
-
-// NewGoogleCloud creates a new GoogleCloud instace for a project
-func NewGoogleCloud(projectID string) (*PubSub, error) {
+// NewGoSub creates a new GoSub instace for a project
+func NewGoSub(projectID string) (*GoSub, error) {
 	c, err := pubsub.NewClient(context.Background(), projectID)
 	if err != nil {
 		return nil, err
 	}
 
-	return &PubSub{
+	return &GoSub{
 		client: c,
 		topics: map[string]*pubsub.Topic{},
 		subs:   map[string]context.CancelFunc{},
-		mutex:  &sync.Mutex{},
 	}, nil
 }
 
 // Publish implements Publish
-func (g *PubSub) Publish(ctx context.Context, topic string, m *ps.Msg) error {
+func (g *GoSub) Publish(ctx context.Context, topic string, m *driver.Msg) error {
 	t, err := g.getTopic(topic)
 	if err != nil {
 		return err
@@ -49,27 +52,27 @@ func (g *PubSub) Publish(ctx context.Context, topic string, m *ps.Msg) error {
 
 	_, err = res.Get(context.Background())
 	if err != nil {
-		logr.WithCtx(ctx).Error(errors.Wrap(err, "publish get failed"))
+		api.Util.Entry().Error(errors.Wrap(err, "publish get failed"))
 	} else {
-		logr.WithCtx(ctx).Debug("Google Pubsub: Publish confirmed")
+		api.Util.Entry().Debug("Google Pubsub: Publish confirmed")
 	}
 
 	return err
 }
 
 // Subscribe implements Subscribe
-func (g *PubSub) Subscribe(opts ps.HandlerOptions, h ps.MsgHandler) {
+func (g *GoSub) Subscribe(opts driver.HandlerOptions, h driver.MsgHandler) {
 	g.subscribe(opts, h, make(chan bool, 1))
 }
 
 // Shutdown shuts down all subscribers gracefully
-func (g *PubSub) Shutdown() {
+func (g *GoSub) Shutdown() {
 	g.shutdown = true
 
 	var wg sync.WaitGroup
 	for k, v := range g.subs {
 		wg.Add(1)
-		logrus.Infof("Shutting down sub for %s", k)
+		api.Util.Entry().Infof("Shutting down sub for %s", k)
 		go func(c context.CancelFunc) {
 			c()
 			wg.Done()
@@ -79,7 +82,7 @@ func (g *PubSub) Shutdown() {
 	return
 }
 
-func (g *PubSub) subscribe(opts ps.HandlerOptions, h ps.MsgHandler, ready chan<- bool) {
+func (g *GoSub) subscribe(opts driver.HandlerOptions, h driver.MsgHandler, ready chan<- bool) {
 	go func() {
 		var err error
 		subName := opts.ServiceName + "." + opts.Name + "--" + opts.Topic
@@ -87,12 +90,12 @@ func (g *PubSub) subscribe(opts ps.HandlerOptions, h ps.MsgHandler, ready chan<-
 
 		t, err := g.getTopic(opts.Topic)
 		if err != nil {
-			logrus.Panicf("Can't fetch topic: %s", err.Error())
+			api.Util.Entry().Panicf("Can't fetch topic: %s", err.Error())
 		}
 
 		ok, err := sub.Exists(context.Background())
 		if err != nil {
-			logrus.Panicf("Can't connect to pubsub: %s", err.Error())
+			api.Util.Entry().Panicf("Can't connect to pubsub: %s", err.Error())
 		}
 
 		if !ok {
@@ -102,11 +105,11 @@ func (g *PubSub) subscribe(opts ps.HandlerOptions, h ps.MsgHandler, ready chan<-
 			}
 			sub, err = g.client.CreateSubscription(context.Background(), subName, sc)
 			if err != nil {
-				logrus.Panicf("Can't subscribe to topic: %s", err.Error())
+				api.Util.Entry().Panicf("Can't subscribe to topic: %s", err.Error())
 			}
 		}
 
-		logrus.Infof("Subscribed to topic %s with name %s", opts.Topic, subName)
+		api.Util.Entry().Infof("Subscribed to topic %s with name %s", opts.Topic, subName)
 		ready <- true
 
 		b := &backoff.Backoff{
@@ -131,7 +134,7 @@ func (g *PubSub) subscribe(opts ps.HandlerOptions, h ps.MsgHandler, ready chan<-
 			cctx, cancel := context.WithCancel(context.Background())
 			err = sub.Receive(cctx, func(ctx context.Context, m *pubsub.Message) {
 				if serr := sem.Acquire(ctx, 1); serr != nil {
-					logrus.Errorf(
+					api.Util.Entry().Errorf(
 						"pubsub: Failed to acquire worker semaphore: %v",
 						serr,
 					)
@@ -140,7 +143,7 @@ func (g *PubSub) subscribe(opts ps.HandlerOptions, h ps.MsgHandler, ready chan<-
 				defer sem.Release(1)
 
 				b.Reset()
-				msg := ps.Msg{
+				msg := driver.Msg{
 					ID:          m.ID,
 					Metadata:    m.Attributes,
 					Data:        m.Data,
@@ -165,7 +168,7 @@ func (g *PubSub) subscribe(opts ps.HandlerOptions, h ps.MsgHandler, ready chan<-
 
 			if err != nil {
 				d := b.Duration()
-				logrus.Errorf(
+				api.Util.Entry().Errorf(
 					"Subscription receive to topic %s failed, reconnecting in %v. Err: %v",
 					opts.Topic, d, err,
 				)
@@ -177,7 +180,7 @@ func (g *PubSub) subscribe(opts ps.HandlerOptions, h ps.MsgHandler, ready chan<-
 	}()
 }
 
-func (g *PubSub) getTopic(name string) (*pubsub.Topic, error) {
+func (g *GoSub) getTopic(name string) (*pubsub.Topic, error) {
 	mutex.Lock()
 	defer mutex.Unlock()
 
@@ -204,7 +207,7 @@ func (g *PubSub) getTopic(name string) (*pubsub.Topic, error) {
 	return t, nil
 }
 
-func (g *PubSub) deleteTopic(name string) error {
+func (g *GoSub) deleteTopic(name string) error {
 	t, err := g.getTopic(name)
 	if err != nil {
 		return err
