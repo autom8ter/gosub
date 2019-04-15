@@ -46,8 +46,8 @@ func (g *GoSub) Publish(ctx context.Context, topic string, m *driver.Msg) error 
 	}
 
 	res := t.Publish(context.Background(), &pubsub.Message{
-		Data:       m.Data,
-		Attributes: m.Metadata,
+		Data:       m.Message.Data,
+		Attributes: m.Message.Attributes,
 	})
 
 	_, err = res.Get(context.Background())
@@ -144,10 +144,12 @@ func (g *GoSub) subscribe(opts driver.HandlerOptions, h driver.MsgHandler, ready
 
 				b.Reset()
 				msg := driver.Msg{
-					ID:          m.ID,
-					Metadata:    m.Attributes,
-					Data:        m.Data,
-					PublishTime: &m.PublishTime,
+					Message: &api.Msg{
+						Id:          m.ID,
+						Attributes:  m.Attributes,
+						Data:        m.Data,
+						PublishTime: m.PublishTime.String(),
+					},
 					Ack: func() {
 						m.Ack()
 					},

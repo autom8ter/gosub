@@ -117,9 +117,9 @@ func (c Client) On(opts HandlerOptions) {
 		var err error
 		obj := reflect.New(hndlr.In(1).Elem()).Interface()
 		if opts.JSON {
-			err = json.Unmarshal(m.Data, obj)
+			err = json.Unmarshal(m.Message.Data, obj)
 		} else {
-			err = proto.Unmarshal(m.Data, obj.(proto.Message))
+			err = proto.Unmarshal(m.Message.Data, obj.(proto.Message))
 		}
 
 		if err != nil {
@@ -173,7 +173,7 @@ func (c *Client) Publish(ctx context.Context, topic string, msg interface{}, isJ
 		return err
 	}
 
-	m := &Msg{Data: b}
+	m := &Msg{Message: &api.Msg{Data: b}}
 
 	mw := chainPublisherMiddleware(c.Middleware...)
 	return mw(c.ServiceName, func(ctx context.Context, topic string, m *Msg) error {
@@ -256,13 +256,9 @@ type Subscriber interface {
 
 // Msg is a representation of a pub sub message
 type Msg struct {
-	ID          string
-	Metadata    map[string]string
-	Data        []byte
-	PublishTime *time.Time
-
-	Ack  func()
-	Nack func()
+	Message *api.Msg
+	Ack     func()
+	Nack    func()
 }
 
 // Handler is a specific callback used for Subscribe in the format of..
