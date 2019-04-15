@@ -1,17 +1,14 @@
-package gosub_test
+package gosub
 
 import (
 	"context"
 	"github.com/autom8ter/api/go/api"
 	"github.com/autom8ter/gosub"
-	"io/ioutil"
+	"github.com/autom8ter/gosub/driver"
 	"os"
 	"testing"
 	"time"
-
-	uuid "github.com/gofrs/uuid"
 	"github.com/golang/protobuf/proto"
-
 	"github.com/stretchr/testify/assert"
 )
 
@@ -25,17 +22,17 @@ func TestGooglePublishSubscribe(t *testing.T) {
 	done := make(chan bool)
 
 	topic := "autom8ter_topic"
-	_, err = ps.getTopic(topic)
+	_, err = ps.GetTopic(topic)
 	assert.Nil(t, err)
 
-	opts := pubsub.HandlerOptions{
+	opts := driver.HandlerOptions{
 		Topic:       topic,
 		Name:        sub,
 		ServiceName: "test",
 	}
 
 	a := test.Account{Name: "Alex"}
-	ps.subscribe(opts, func(ctx context.Context, m pubsub.Msg) error {
+	ps.subscribe(opts, func(ctx context.Context, m driver.Msg) error {
 		var ac test.Account
 		proto.Unmarshal(m.Data, &ac)
 
@@ -52,5 +49,5 @@ func TestGooglePublishSubscribe(t *testing.T) {
 		assert.Fail(t, "Subscription failed after timeout")
 	}
 
-	assert.Nil(t, ps.deleteTopic(topic))
+	assert.Nil(t, ps.DeleteTopic(topic))
 }
