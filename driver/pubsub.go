@@ -280,23 +280,3 @@ type Middleware interface {
 	SubscribeInterceptor(opts HandlerOptions, next MsgHandler) MsgHandler
 	PublisherMsgInterceptor(serviceName string, next PublishHandler) PublishHandler
 }
-
-type SubscriberWare func(opts HandlerOptions, next MsgHandler) MsgHandler
-type PublisherWare func(serviceName string, next PublishHandler) PublishHandler
-
-type MiddlewareFunctions struct {
-	SubscriberWare SubscriberWare
-	PublisherWare  PublisherWare
-}
-
-func NewMiddlewareFunctions(subscriberWare SubscriberWare, publisherWare PublisherWare) *MiddlewareFunctions {
-	return &MiddlewareFunctions{SubscriberWare: subscriberWare, PublisherWare: publisherWare}
-}
-
-func (m MiddlewareFunctions) SubscribeInterceptor(opts HandlerOptions, next MsgHandler) MsgHandler {
-	return m.SubscriberWare(opts, next)
-}
-
-func (m MiddlewareFunctions) PublisherMsgInterceptor(serviceName string, next PublishHandler) PublishHandler {
-	return m.PublisherWare(serviceName, next)
-}

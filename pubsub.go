@@ -217,3 +217,24 @@ func (g *GoSub) deleteTopic(name string) error {
 
 	return t.Delete(context.Background())
 }
+
+
+type SubscriberWare func(opts driver.HandlerOptions, next driver.MsgHandler) driver.MsgHandler
+type PublisherWare func(serviceName string, next driver.PublishHandler) driver.PublishHandler
+
+type MiddlewareFunctions struct {
+	SubscriberWare SubscriberWare
+	PublisherWare  PublisherWare
+}
+
+func NewMiddlewareFunctions(subscriberWare SubscriberWare, publisherWare PublisherWare) *MiddlewareFunctions {
+	return &MiddlewareFunctions{SubscriberWare: subscriberWare, PublisherWare: publisherWare}
+}
+
+func (m MiddlewareFunctions) SubscribeInterceptor(opts driver.HandlerOptions, next driver.MsgHandler) driver.MsgHandler {
+	return m.SubscriberWare(opts, next)
+}
+
+func (m MiddlewareFunctions) PublisherMsgInterceptor(serviceName string, next driver.PublishHandler) driver.PublishHandler {
+	return m.PublisherWare(serviceName, next)
+}
