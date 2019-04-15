@@ -146,7 +146,7 @@ func (g *GoSub) subscribe(opts driver.HandlerOptions, h driver.MsgHandler, ready
 				msg := driver.Msg{
 					Message: &api.Msg{
 						Id:          m.ID,
-						Meta:  m.Attributes,
+						Meta:        m.Attributes,
 						Data:        m.Data,
 						PublishTime: m.PublishTime.String(),
 					},

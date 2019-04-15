@@ -103,6 +103,28 @@ type Middleware interface {
 
 Middleware is an interface to provide subscriber and publisher interceptors
 
+#### type MiddlewareFunctions
+
+```go
+type MiddlewareFunctions struct {
+	SubscriberWare SubscriberWare
+	PublisherWare  PublisherWare
+}
+```
+
+
+#### func (MiddlewareFunctions) PublisherMsgInterceptor
+
+```go
+func (m MiddlewareFunctions) PublisherMsgInterceptor(serviceName string, next PublishHandler) PublishHandler
+```
+
+#### func (MiddlewareFunctions) SubscribeInterceptor
+
+```go
+func (m MiddlewareFunctions) SubscribeInterceptor(opts HandlerOptions, next MsgHandler) MsgHandler
+```
+
 #### type Msg
 
 ```go
@@ -199,6 +221,13 @@ func PublishJSON(ctx context.Context, topic string, obj interface{}) *PublishRes
 PublishJSON is a convenience message which publishes to the current (global)
 publisher as JSON
 
+#### type PublisherWare
+
+```go
+type PublisherWare func(serviceName string, next PublishHandler) PublishHandler
+```
+
+
 #### type Subscriber
 
 ```go
@@ -211,3 +240,9 @@ type Subscriber interface {
 
 Subscriber is a service that listens to events and registers handlers for those
 events
+
+#### type SubscriberWare
+
+```go
+type SubscriberWare func(opts HandlerOptions, next MsgHandler) MsgHandler
+```
