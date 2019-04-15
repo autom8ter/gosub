@@ -1,6 +1,7 @@
 package gosub
 
 import (
+	"cloud.google.com/go/iam"
 	"cloud.google.com/go/pubsub"
 	"context"
 	"github.com/autom8ter/api/go/api"
@@ -40,7 +41,7 @@ func NewGoSub(projectID string) (*GoSub, error) {
 
 // Publish implements Publish
 func (g *GoSub) Publish(ctx context.Context, topic string, m *driver.Msg) error {
-	t, err := g.getTopic(topic)
+	t, err := g.GetTopic(topic)
 	if err != nil {
 		return err
 	}
@@ -88,7 +89,7 @@ func (g *GoSub) subscribe(opts driver.HandlerOptions, h driver.MsgHandler, ready
 		subName := opts.ServiceName + "." + opts.Name + "--" + opts.Topic
 		sub := g.client.Subscription(subName)
 
-		t, err := g.getTopic(opts.Topic)
+		t, err := g.GetTopic(opts.Topic)
 		if err != nil {
 			api.Util.Entry().Panicf("Can't fetch topic: %s", err.Error())
 		}
@@ -182,7 +183,7 @@ func (g *GoSub) subscribe(opts driver.HandlerOptions, h driver.MsgHandler, ready
 	}()
 }
 
-func (g *GoSub) getTopic(name string) (*pubsub.Topic, error) {
+func (g *GoSub) GetTopic(name string) (*pubsub.Topic, error) {
 	mutex.Lock()
 	defer mutex.Unlock()
 
@@ -209,13 +210,67 @@ func (g *GoSub) getTopic(name string) (*pubsub.Topic, error) {
 	return t, nil
 }
 
-func (g *GoSub) deleteTopic(name string) error {
-	t, err := g.getTopic(name)
+func (g *GoSub) DeleteTopic(name string) error {
+	t, err := g.GetTopic(name)
 	if err != nil {
 		return err
 	}
 
 	return t.Delete(context.Background())
+}
+
+func (g *GoSub) TopicExists(name string) (bool, error) {
+	t, err := g.GetTopic(name)
+	if err != nil {
+		return false, err
+	}
+
+	return t.Exists(context.Background())
+}
+
+
+func (g *GoSub) TopicIAM(name string) (*iam.Handle, error) {
+	t, err := g.GetTopic(name)
+	if err != nil {
+		return nil, err
+	}
+
+	return t.IAM(), nil
+}
+
+
+func (g *GoSub) TopicSubscriptions(name string, ctx context.Context) (*pubsub.SubscriptionIterator, error) {
+	t, err := g.GetTopic(name)
+	if err != nil {
+		return nil, err
+	}
+	return t.Subscriptions(ctx), nil
+}
+
+func (g *GoSub) TopicConfig(name string, ctx context.Context) (pubsub.TopicConfig, error) {
+	t, err := g.GetTopic(name)
+	if err != nil {
+		return pubsub.TopicConfig{}, err
+	}
+	cfg, err := t.Config(ctx)
+	if err != nil {
+		return pubsub.TopicConfig{}, err
+	}
+	return cfg, nil
+}
+
+func (g *GoSub) UpdateTopicConfig(name string, ctx context.Context, labels map[string]string) (pubsub.TopicConfig, error) {
+	t, err := g.GetTopic(name)
+	if err != nil {
+		return pubsub.TopicConfig{}, err
+	}
+	cfg, err := t.Update(ctx, pubsub.TopicConfigToUpdate{
+		Labels: labels,
+	})
+	if err != nil {
+		return pubsub.TopicConfig{}, err
+	}
+	return cfg, nil
 }
 
 
